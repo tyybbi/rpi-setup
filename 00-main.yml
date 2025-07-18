@@ -1,0 +1,15 @@
+---
+- name: My RPi setup
+  hosts: all
+  gather_facts: true
+  vars:
+    username: CHANGEME
+    database_host_address: XXX.XXX.XX.XXX
+
+  tasks:
+    - name: Base system tasks
+      ansible.builtin.import_tasks: "10-base.yml"
+    - name: Ruuvitag and grafana tasks
+      ansible.builtin.import_tasks: "20-ruuvi-grafana.yml"
+    - name: HA supervised and docker tasks
+      ansible.builtin.import_tasks: "30-ha.yml"

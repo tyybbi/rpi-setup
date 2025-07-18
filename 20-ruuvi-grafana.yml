@@ -1,0 +1,128 @@
+---
+- name: Create misc dir
+  ansible.builtin.file:
+    path: "/home/{{ username }}/misc"
+    state: directory
+    owner: "{{ username }}"
+    group: "{{ username }}"
+    mode: '0750'
+
+- name: Grafana repo keyring
+  ansible.builtin.shell:
+    cmd: >
+      wget -q -O - https://apt.grafana.com/gpg.key |
+      gpg --dearmor -o /etc/apt/keyrings/grafana.gpg > /dev/null
+  become: true
+
+- name: Grafana repo
+  ansible.builtin.shell:
+    cmd: >
+      echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" |
+      tee -a /etc/apt/sources.list.d/grafana.list
+  become: true
+
+- name: Install grafana
+  ansible.builtin.apt:
+    name: grafana
+    update_cache: true
+  become: true
+
+- name: Template grafana config
+  ansible.builtin.template:
+    src: files/grafana.ini.j2
+    dest: /etc/grafana/grafana.ini
+    owner: root
+    group: root
+    mode: '0640'
+  become: true
+
+- name: Restart and enable grafana
+  ansible.builtin.systemd:
+    service: grafana-server
+    state: restarted
+    enabled: true
+  become: true
+
+- name: Install nginx
+  ansible.builtin.apt:
+    name: nginx
+  become: true
+
+- name: Copy nginx proxy conf
+  ansible.builtin.copy:
+    src: files/reverse-proxy
+    dest: /etc/nginx/sites-available/reverse-proxy
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+
+- name: Enable proxy conf
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/reverse-proxy
+    dest: /etc/nginx/sites-enabled/reverse-proxy
+    state: link
+  become: true
+
+- name: Disable default conf
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  become: true
+
+- name: Restart and enable nginx
+  ansible.builtin.systemd:
+    service: nginx
+    state: restarted
+    daemon-reload: true
+    enabled: true
+  become: true
+
+- name: Ensure venv dir
+  ansible.builtin.file:
+    path: "/home/{{ username }}/misc/venv"
+    state: directory
+    owner: "{{ username }}"
+    group: "{{ username }}"
+    mode: '0750'
+
+- name: Create venv
+  ansible.builtin.command:
+    cmd: python -m venv venv
+  args:
+    chdir: "/home/{{ username }}/misc"
+
+- name: Pip install ruuvitag_sensor
+  ansible.builtin.pip:
+    name: ruuvitag_sensor
+    virtualenv: "/home/{{ username }}/misc/venv"
+
+- name: Pip install influxdb
+  ansible.builtin.pip:
+    name: influxdb
+    virtualenv: "/home/{{ username }}/misc/venv"
+
+- name: Template influx script
+  ansible.builtin.template:
+    src: files/async_post_to_influxdb.py.j2
+    dest: "/home/{{ username }}/misc/async_post_to_influxdb.py"
+    owner: "{{ username }}"
+    group: "{{ username }}"
+    mode: '0640'
+
+- name: Template ruuvitag service file
+  ansible.builtin.template:
+    src: files/ruuvitag.service.j2
+    dest: /etc/systemd/system/ruuvitag.service
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+
+- name: Start and enable ruuvitag service
+  ansible.builtin.systemd:
+    service: ruuvitag
+    state: restarted
+    daemon_reload: true
+    enabled: true
+  become: true

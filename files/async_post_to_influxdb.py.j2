@@ -1,0 +1,42 @@
+import asyncio
+from influxdb import InfluxDBClient
+from ruuvitag_sensor.ruuvi import RuuviTagSensor
+
+client = InfluxDBClient(host='{{ database_host_address }}', port=8086, database='ruuvitagit')
+
+def write_to_influxdb(mac, payload):
+    dataFormat = payload.get('data_format')
+    fields = {
+        'temperature': payload.get('temperature'),
+        'humidity': payload.get('humidity'),
+        'pressure': payload.get('pressure'),
+        'accelerationX': payload.get('acceleration_x'),
+        'accelerationY': payload.get('acceleration_y'),
+        'accelerationZ': payload.get('acceleration_z'),
+        'batteryVoltage': payload.get('battery') / 1000.0 if payload.get('battery') else None,
+        'txPower': payload.get('tx_power'),
+        'movementCounter': payload.get('movement_counter'),
+        'measurementSequenceNumber': payload.get('measurement_sequence_number'),
+        'tagID': payload.get('tagID'),
+        'rssi': payload.get('rssi')
+    }
+
+    json_body = [
+        {
+            'measurement': 'ruuvi_measurements',
+            'tags': {
+                'mac': mac,
+                'dataFormat': dataFormat
+            },
+            'fields': fields
+        }
+    ]
+    client.write_points(json_body)
+
+async def main():
+    async for mac, payload in RuuviTagSensor.get_data_async():
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, write_to_influxdb, mac, payload)
+
+if __name__ == "__main__":
+    asyncio.run(main())

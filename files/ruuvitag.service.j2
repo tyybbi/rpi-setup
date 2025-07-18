@@ -1,0 +1,12 @@
+[Unit]
+Description=ruuvitag
+After=syslog.target network.target
+
+[Service]
+Type=simple
+User={{ username }}
+WorkingDirectory=/home/{{ username }}/misc/venv
+ExecStart=/home/{{ username }}/misc/venv/bin/python3 /home/{{ username }}/misc/async_post_to_influxdb.py
+
+[Install]
+WantedBy=multi-user.target
