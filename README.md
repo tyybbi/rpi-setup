@@ -1,3 +1,5 @@
+*Migrated to [Codeberg.org](https://codeberg.org/tyybbi/rpi-setup)*
+
 # rpi-setup
 
 My RaspberryPi setup with Grafana, Nginx reverse proxy, Docker, some RuuviTags
